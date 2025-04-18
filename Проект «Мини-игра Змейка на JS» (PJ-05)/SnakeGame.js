@@ -1,63 +1,26 @@
-class snakeGame {
-    #container;
-    #field;
-    #rows = 10;
-    #cols = 10;
-    #snakeBody;
-    #direction = 'right';
-    #startGame = false;
-    #intervalID;
-    #appleX;
-    #appleY;
-    #score = 0;
-    #bestScore = localStorage.getItem("bestScore") || 0;
+  import Grid from './Grid.js';
+  import Snake from './Snake.js';
+  import Apple from './Apple.js';
+
+
+  class snakeGame {
+    #container; // SnakeGame
+    #startGame = false; //SnakeGame
+    #intervalID; //SnakeGame
+    #score = 0; //SnakeGame
+    #bestScore = localStorage.getItem("bestScore") || 0; //SnakeGame
   
     constructor(containerSelector, fieldSelector) {
         this.#container = document.querySelector(containerSelector);
-        this.#field = document.querySelector(fieldSelector);
-    
-        this.#createGrid();  
-        this.#initSnake(); 
-        this.#addApple(); 
-        this.#renderSnake();  
-        this.#initControls();  
-        this.#showBestScore(); 
+
+        this.grid = new Grid(fieldSelector);
+        this.snake = new Snake(this.grid);
+        this.apple = new Apple(this.grid, this.snake);
+
+        this.#initControls();  //SnakeGame
+        this.#showBestScore(); //SnakeGame
     }
-  
-//добавление клеток на поле grid
-    #createGrid() {
-        for (let row = 1; row <= this.#rows; row++) {
-            for (let col = 1; col <= this.#cols; col++) {
-            const cell = document.createElement("div");
-            cell.classList.add("cell");
-            cell.dataset.x = col;
-            cell.dataset.y = row;
-            this.#field.appendChild(cell);
-            }
-        }
-        this.#field.style.gridTemplateColumns = `repeat(${this.#cols}, 70px)`;
-        this.#field.style.gridTemplateRows = `repeat(${this.#rows}, 70px)`;
-    }
-  
-// массив змейки
-    #initSnake() {
-        this.#snakeBody = [
-            [6, 5],
-            [5, 5],
-        ];
-    }
-  
-    #renderSnake() {
-        this.#snakeBody.forEach(([x, y]) => {
-            const cell = this.#getCell(x, y);
-            if (cell) cell.classList.add("snake");
-        });
-    }
-  
-// стартовое положение змейки 
-    #getCell(x, y) {
-        return document.querySelector(`.cell[data-x='${x}'][data-y='${y}']`);
-    }
+
   
 // лучший счет
     #showBestScore() {
@@ -68,20 +31,6 @@ class snakeGame {
         }
     }
   
-// яблко
-    #addApple() {
-        let x, y;
-        do {
-            x = Math.floor(Math.random() * this.#cols) + 1;
-            y = Math.floor(Math.random() * this.#rows) + 1;
-        } while (this.#snakeBody.some(([sx, sy]) => sx === x && sy === y));
-    
-        this.#appleX = x;
-        this.#appleY = y;
-    
-        const appleCell = this.#getCell(x, y);
-        if (appleCell) appleCell.classList.add("apple");
-    }
   
 // назначение событий на стрелочки
     #initControls() {
@@ -103,8 +52,8 @@ class snakeGame {
             this.#intervalID = setInterval(() => this.#moveSnake(), 500);
             }
     
-            if (opposites[this.#direction] !== newDir) {
-            this.#direction = newDir;
+            if (opposites[this.snake.direction] !== newDir) {
+            this.snake.direction = newDir;
             }
         });
     
@@ -117,9 +66,9 @@ class snakeGame {
   
 // движение змейки
     #moveSnake() {
-        let [x, y] = this.#snakeBody[0];
+        let [x, y] = this.snake.snakeBody[0];
     
-        switch (this.#direction) {
+        switch (this.snake.direction) {
             case "left": --x; break;
             case "right": ++x; break;
             case "up": --y; break;
@@ -129,8 +78,8 @@ class snakeGame {
         const newXY = [x, y];
     
         if (
-            x < 1 || y < 1 || x > this.#cols || y > this.#rows ||
-            this.#snakeBody.some(([sx, sy]) => sx === x && sy === y)
+            x < 1 || y < 1 || x > this.grid.cols || y > this.grid.rows ||
+            this.snake.snakeBody.some(([sx, sy]) => sx === x && sy === y)
         ) {
             this.#container.innerHTML = `<div class="game-over">Игра окончена &#9785 <br> Счет: ${this.#score} <button class="restart">Restart</button></div>`;
             localStorage.setItem("firstGame", "true");
@@ -138,12 +87,12 @@ class snakeGame {
             return;
         }
     
-        this.#snakeBody.unshift(newXY); // новые координаты головы
+        this.snake.snakeBody.unshift(newXY); // новые координаты головы
     
-        if (x === this.#appleX && y === this.#appleY) {
-            const appleCell = this.#getCell(x, y);
+        if (x === this.apple.appleX && y === this.apple.appleY) {
+            const appleCell = this.grid.getCell(x, y);
             if (appleCell) appleCell.classList.remove("apple");
-            this.#addApple();
+            this.apple.addApple();
             this.#score++;
             document.querySelector(".score").textContent = "Текущий счет: " + this.#score;
     
@@ -153,21 +102,22 @@ class snakeGame {
             document.querySelector(".best-score").textContent = "Рекорд: " + this.#bestScore;
             }
         } else {
-            const tail = this.#snakeBody.pop();
-            const tailCell = this.#getCell(tail[0], tail[1]);
+            const tail = this.snake.snakeBody.pop();
+            const tailCell = this.grid.getCell(tail[0], tail[1]);
             if (tailCell) tailCell.classList.remove("snake");
         }
     
-        this.#snakeBody.forEach(([x, y]) => {
-            const cell = this.#getCell(x, y);
+        this.snake.snakeBody.forEach(([x, y]) => {
+            const cell = this.grid.getCell(x, y);
             if (cell) cell.classList.add("snake");
         });
     }
   
 //перезапуск игры
     restartGame() {
+        // location.reload();
         this.#score = 0;
-        this.#container.innerHTML = "";
+        this.#container.innerHTML = " ";
         document.querySelector(".score").textContent = "Текущий счет: " + this.#score;
         if (localStorage.getItem("firstGame") === "true") {
             const bestScoreEl = document.querySelector(".best-score");
@@ -180,14 +130,16 @@ class snakeGame {
             cell.classList.remove("snake", "apple");
         });
     
-        this.#initSnake();
-        this.#direction = 'right';
+        this.snake.initSnake();
+        this.snake.direction = 'right';
         this.#startGame = true;
-        this.#renderSnake();
-        this.#addApple();
+        this.snake.renderSnake();
+        this.apple.addApple();
         this.#intervalID = setInterval(() => this.#moveSnake(), 500);
     }
   }
+
+
 //запуск
   const game = new snakeGame(".empty", ".game-field");
   
